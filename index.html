@@ -1,0 +1,318 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Demo Slot — Safe Demo (Local)</title>
+<style>
+  :root{--bg:#071129;--card:#0c1724;--muted:#9fb0c9;--accent:#39d0ff;--glass:rgba(255,255,255,0.03)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#041028 0%,#071422 100%);color:#eaf6ff}
+  .wrap{max-width:1100px;margin:28px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+  .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+  h1{margin:0 0 8px 0;font-size:20px}
+  .muted{color:var(--muted);font-size:13px}
+  .slot-area{display:flex;flex-direction:column;gap:12px;align-items:center}
+  .reels{display:flex;gap:10px}
+  .reel{width:120px;height:120px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:44px;overflow:hidden;position:relative}
+  .reel .strip{position:absolute;top:0;left:0;right:0}
+  .controls{display:flex;gap:8px;align-items:center}
+  input[type=range]{width:100%}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+  .stat{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center}
+  .big{font-size:20px;font-weight:700}
+  button{background:var(--accent);border:0;padding:10px 12px;border-radius:8px;color:#042431;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .small{padding:8px 10px;font-size:14px}
+  .history{max-height:300px;overflow:auto;margin-top:8px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
+  .history-item{display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:13px}
+  footer{margin-top:12px;font-size:12px;color:#ffcccb}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Demo Slot — Safe Local Simulator</h1>
+    <div class="muted">Ini simulasi lokal untuk tujuan demo/presentasi. Tidak terhubung ke layanan pihak ketiga dan tidak memanipulasi game asli.</div><div style="height:18px"></div>
+<div class="slot-area">
+  <div class="reels" id="reels">
+    <div class="reel" data-index="0"><div class="strip"></div></div>
+    <div class="reel" data-index="1"><div class="strip"></div></div>
+    <div class="reel" data-index="2"><div class="strip"></div></div>
+  </div>
+
+  <div style="width:100%;max-width:520px;margin-top:8px;display:flex;gap:8px">
+    <input id="bet" type="number" value="10" min="1" style="flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+    <button id="spinBtn" class="small">Spin</button>
+    <button id="autoplay" class="ghost small">Autoplay</button>
+  </div>
+
+  <div class="stats" style="width:100%;max-width:520px">
+    <div class="stat"><div class="muted">Saldo</div><div id="balance" class="big">1000</div></div>
+    <div class="stat"><div class="muted">Total Menang</div><div id="totalWin" class="big">0</div></div>
+    <div class="stat"><div class="muted">Spin</div><div id="spins" class="big">0</div></div>
+    <div class="stat"><div class="muted">Menang</div><div id="wins" class="big">0</div></div>
+  </div>
+
+  <div style="width:100%;max-width:520px;margin-top:8px;display:flex;gap:8px;align-items:center">
+    <div style="flex:1">
+      <label class="muted">Probabilitas Menang (demo): <span id="winPctLabel">30%</span></label>
+      <input id="winPct" type="range" min="0" max="100" value="30">
+    </div>
+    <button id="force" class="ghost">Force: <span id="forceState">Off</span></button>
+  </div>
+
+  <div style="width:100%;max-width:520px;margin-top:8px;display:flex;gap:8px">
+    <button id="exportCsv" class="ghost">Export CSV</button>
+    <button id="resetStats" class="ghost">Reset</button>
+    <div style="flex:1" class="muted" id="message">&nbsp;</div>
+  </div>
+
+  <div class="history" id="history"></div>
+</div>
+
+<footer>Disclaimer: Hanya untuk demo. Jangan gunakan untuk melakukan manipulasi atau aktivitas ilegal.</footer>
+
+  </div>  <div class="card">
+    <h2>Pengaturan & Simulasi</h2>
+    <div class="muted">Atur simbol, pembayaran, dan parameter demo di sini.</div><div style="margin-top:12px">
+  <label class="muted">Simbol (gunakan emoji atau teks), pisahkan dengan koma:</label>
+  <textarea id="symbols" rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">🍒,🍋,🔔,⭐,7️⃣,💎</textarea>
+</div>
+
+<div style="margin-top:8px">
+  <label class="muted">Tabel pembayaran (contoh): gunakan format simbol=multiplier, satu per baris. Contoh: 🍒=2</label>
+  <textarea id="paytable" rows="6" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">🍒=2
+
+🍋=2 🔔=3 ⭐=5 7️⃣=10 💎=20</textarea> </div>
+
+<div style="margin-top:8px;display:flex;gap:8px">
+  <button id="applySettings" class="small">Apply Settings</button>
+  <button id="saveLocal" class="ghost small">Save Local</button>
+  <button id="loadLocal" class="ghost small">Load Local</button>
+</div>
+
+<div style="margin-top:10px">
+  <div class="muted">Petunjuk singkat:</div>
+  <ul class="muted">
+    <li>Atur probabilitas menang untuk keperluan demo.</li>
+    <li>Gunakan tombol Force untuk memaksa hasil win/lose (hanya demo).</li>
+    <li>Export CSV menyimpan riwayat spin untuk analisis.</li>
+  </ul>
+</div>
+
+  </div>
+</div><script>
+(function(){
+  // Utilities
+  const qs = s => document.querySelector(s);
+  const qsa = s => Array.from(document.querySelectorAll(s));
+
+  // Elements
+  const reelsEl = qs('#reels');
+  const reelEls = qsa('.reel');
+  const spinBtn = qs('#spinBtn');
+  const autoplayBtn = qs('#autoplay');
+  const betInput = qs('#bet');
+  const balanceEl = qs('#balance');
+  const totalWinEl = qs('#totalWin');
+  const spinsEl = qs('#spins');
+  const winsEl = qs('#wins');
+  const winPct = qs('#winPct');
+  const winPctLabel = qs('#winPctLabel');
+  const forceBtn = qs('#force');
+  const forceState = qs('#forceState');
+  const historyEl = qs('#history');
+  const exportCsv = qs('#exportCsv');
+  const resetStats = qs('#resetStats');
+  const message = qs('#message');
+  const symbolsInput = qs('#symbols');
+  const paytableInput = qs('#paytable');
+  const applySettings = qs('#applySettings');
+  const saveLocal = qs('#saveLocal');
+  const loadLocal = qs('#loadLocal');
+
+  // State
+  let state = {
+    balance: 1000,
+    totalWin: 0,
+    spins: 0,
+    wins: 0,
+    winPct: Number(winPct.value),
+    forced: null, // null | true | false
+    symbols: ['🍒','🍋','🔔','⭐','7️⃣','💎'],
+    paytable: { '🍒':2,'🍋':2,'🔔':3,'⭐':5,'7️⃣':10,'💎':20 },
+    history: []
+  };
+
+  function renderStats(){
+    balanceEl.textContent = state.balance.toFixed(2);
+    totalWinEl.textContent = state.totalWin.toFixed(2);
+    spinsEl.textContent = state.spins;
+    winsEl.textContent = state.wins;
+    winPctLabel.textContent = state.winPct + '%';
+    forceState.textContent = state.forced === null ? 'Off' : (state.forced ? 'WIN' : 'LOSE');
+  }
+
+  function seedStrip(reelEl, symbols){
+    const strip = reelEl.querySelector('.strip');
+    strip.innerHTML = '';
+    // make a tall column of symbols to animate
+    for(let i=0;i<30;i++){
+      const s = document.createElement('div');
+      s.style.height = '120px';
+      s.style.display = 'flex';
+      s.style.alignItems = 'center';
+      s.style.justifyContent = 'center';
+      s.style.fontSize = '48px';
+      s.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+      strip.appendChild(s);
+    }
+    // position
+    strip.style.transition = 'none';
+    strip.style.transform = 'translateY(0)';
+  }
+
+  function spinAnimation(reelEl, duration=900){
+    return new Promise(resolve=>{
+      const strip = reelEl.querySelector('.strip');
+      // random end offset
+      const itemHeight = 120;
+      const total = strip.children.length;
+      const endIndex = Math.floor(Math.random()*total);
+      const offset = -endIndex * itemHeight;
+      // force reflow
+      void strip.offsetWidth;
+      strip.style.transition = `transform ${duration}ms cubic-bezier(.17,.67,.28,1)`;
+      strip.style.transform = `translateY(${offset}px)`;
+      setTimeout(()=>{
+        // ensure final content shows a random symbol we can read
+        const visible = strip.children[endIndex].textContent;
+        resolve(visible);
+      }, duration+20);
+    });
+  }
+
+  function applySettingsFromInputs(){
+    const syms = symbolsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+    if(syms.length>=2){ state.symbols = syms; }
+    // parse paytable lines
+    const lines = paytableInput.value.split('\n').map(l=>l.trim()).filter(Boolean);
+    const pt = {};
+    lines.forEach(line=>{
+      const parts = line.split('=');
+      if(parts.length===2){ pt[parts[0].trim()] = Number(parts[1]); }
+    });
+    // fill missing with default multiplier 1
+    state.paytable = pt;
+    // seed strips
+    reelEls.forEach(r=>seedStrip(r, state.symbols));
+    showMessage('Settings applied');
+  }
+
+  function showMessage(t){ message.textContent = t; setTimeout(()=>{ if(message.textContent===t) message.textContent=''; },2200); }
+
+  async function spinOnce(){
+    const bet = Math.max(1, Number(betInput.value)||1);
+    if(state.balance < bet){ alert('Saldo tidak cukup'); return; }
+    state.balance -= bet;
+    state.spins++;
+
+    // Determine win/lose
+    let win = false;
+    if(state.forced === true) win = true;
+    else if(state.forced === false) win = false;
+    else win = (Math.random()*100) < state.winPct;
+
+    // Animate reels in sequence
+    // re-seed strips for visual randomness
+    reelEls.forEach(r=>seedStrip(r, state.symbols));
+    const results = [];
+    for(let i=0;i<reelEls.length;i++){
+      const duration = 700 + i*220 + Math.floor(Math.random()*200);
+      const res = await spinAnimation(reelEls[i], duration);
+      results.push(res);
+    }
+
+    // Determine payout based on simplistic rule: if all 3 same, pay multiplier; else if any two same, smaller pay
+    let payout = 0;
+    const counts = {};
+    results.forEach(r=>counts[r]=(counts[r]||0)+1);
+    const top = Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+    if(counts[top]===3){ payout = bet * (state.paytable[top] || 2); }
+    else if(counts[top]===2){ payout = bet * Math.max(1.2, (state.paytable[top] || 2)/2); }
+    else { payout = 0; }
+
+    if(win && payout===0){
+      // force a winning combination by adjusting result to a random paid symbol
+      const winners = Object.keys(state.paytable).filter(k=>state.paytable[k]>1);
+      if(winners.length){
+        const pick = winners[Math.floor(Math.random()*winners.length)];
+        results[0]=results[1]=results[2]=pick;
+        payout = bet * (state.paytable[pick]||2);
+      }
+    }
+
+    if(!win) payout = 0;
+
+    if(payout>0){
+      state.balance += payout;
+      state.totalWin += payout;
+      state.wins++;
+    }
+
+    // record history
+    const rec = {time:new Date().toISOString(), bet:bet, result: results.join(' | '), payout: payout};
+    state.history.unshift(rec);
+    if(state.history.length>500) state.history.pop();
+
+    renderStats();
+    renderHistory();
+  }
+
+  function renderHistory(){
+    historyEl.innerHTML = '';
+    state.history.forEach(h=>{
+      const div = document.createElement('div'); div.className='history-item';
+      div.innerHTML = `<div><strong>${h.result}</strong><div class="muted">${new Date(h.time).toLocaleString()}</div></div><div>${h.payout>0?('+ '+h.payout.toFixed(2)):('- '+h.bet)}</div>`;
+      historyEl.appendChild(div);
+    });
+  }
+
+  function exportToCsv(){
+    const rows = [['time','bet','result','payout']];
+    state.history.slice().reverse().forEach(h=>rows.push([h.time,h.bet,h.result,h.payout]));
+    const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""') }"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = 'demo_slot_history.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // Events
+  spinBtn.addEventListener('click', spinOnce);
+  winPct.addEventListener('input', ()=>{ state.winPct = Number(winPct.value); renderStats(); });
+  forceBtn.addEventListener('click', ()=>{ state.forced = state.forced === null ? true : (state.forced===true?false:null); renderStats(); });
+  exportCsv.addEventListener('click', exportToCsv);
+  resetStats.addEventListener('click', ()=>{ if(!confirm('Reset semua statistik dan riwayat?')) return; state.spins=0;state.wins=0;state.totalWin=0;state.history=[];renderStats();renderHistory();showMessage('Reset complete'); });
+  applySettings.addEventListener('click', applySettingsFromInputs);
+  saveLocal.addEventListener('click', ()=>{ localStorage.setItem('demoSlot', JSON.stringify(state)); showMessage('Saved locally'); });
+  loadLocal.addEventListener('click', ()=>{ const s = localStorage.getItem('demoSlot'); if(!s){ showMessage('No saved data'); return;} try{ const obj = JSON.parse(s); Object.assign(state,obj); renderStats(); renderHistory(); showMessage('Loaded'); }catch(e){ showMessage('Load failed'); } });
+
+  // Autoplay simple
+  let autoplayInterval = null;
+  autoplayBtn.addEventListener('click', ()=>{
+    if(autoplayInterval){ clearInterval(autoplayInterval); autoplayInterval=null; autoplayBtn.textContent='Autoplay'; return; }
+    autoplayBtn.textContent='Stop';
+    autoplayInterval = setInterval(()=>{ spinOnce(); if(state.balance< (Number(betInput.value)||1)) { clearInterval(autoplayInterval); autoplayInterval=null; autoplayBtn.textContent='Autoplay'; } }, 1200);
+  });
+
+  // init
+  reelEls.forEach(r=>seedStrip(r, state.symbols));
+  renderStats();
+  renderHistory();
+
+})();
+</script></body>
+</html>
