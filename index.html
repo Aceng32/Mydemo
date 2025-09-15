@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Gates-style Demo — Controlled (Inspired, NOT a copy)</title>
+<style>
+  :root{--bg:#061226;--card:#0b1624;--muted:#a6bed0;--accent:#6ad6ff}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#021022 0%,#071428 100%);color:#e8f6ff}
+  .wrap{max-width:1200px;margin:20px auto;padding:20px;display:grid;grid-template-columns:1fr 340px;gap:16px}
+  .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+  h1{margin:0 0 8px;font-size:20px}
+  .muted{color:var(--muted);font-size:13px}
+  .board{display:grid;grid-template-columns:repeat(6,84px);grid-auto-rows:84px;gap:8px;justify-content:center;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:10px}
+  .cell{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:34px;position:relative}
+  .mult-badge{position:absolute;top:6px;right:6px;background:rgba(255,230,120,0.12);padding:2px 6px;border-radius:6px;font-size:12px}
+  .controls{display:flex;flex-direction:column;gap:10px}
+  input[type=range]{width:100%}
+  .row{display:flex;gap:8px}
+  .big{font-size:20px;font-weight:700}
+  button{background:var(--accent);border:0;padding:10px 12px;border-radius:8px;color:#05222b;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+  .history{max-height:300px;overflow:auto;margin-top:8px;background:rgba(255,255,255,0.015);padding:8px;border-radius:8px}
+  .history-item{display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:13px}
+  footer{margin-top:12px;font-size:12px;color:#ffcccb}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Gates-style Demo — Controlled (INSPIRASI)</h1>
+    <div class="muted">Demo ini meniru mekanik: grid 6×5, tumble (cascade), simbol multiplier, dan fitur putaran gratis. <strong>Bukan salinan aset resmi.</strong></div>
+
+    <div style="height:12px"></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1">
+        <label class="muted">Saldo virtual</label>
+        <input id="balanceInput" type="number" value="1000" min="0" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+      </div>
+      <div style="width:140px">
+        <label class="muted">Taruhan</label>
+        <input id="betInput" type="number" value="2" min="0.1" step="0.1" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+      </div>
+      <div style="width:120px">
+        <label class="muted">Win %</label>
+        <input id="winPct" type="range" min="0" max="100" value="30">
+        <div class="muted" id="winPctLabel">30%</div>
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+    <div class="board" id="board"></div>
+
+    <div style="height:12px"></div>
+    <div class="row">
+      <button id="spinBtn">Spin</button>
+      <button id="forceBtn" class="ghost">Force: <span id="forceState">Off</span></button>
+      <button id="freeSpinBtn" class="ghost">Trigger Free Spins</button>
+      <button id="resetBtn" class="ghost">Reset</button>
+      <div style="flex:1" class="muted" id="message">&nbsp;</div>
+    </div>
+
+    <div style="height:10px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div style="min-width:120px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center">
+        <div class="muted">Saldo</div>
+        <div id="balance" class="big">1000</div>
+      </div>
+      <div style="min-width:120px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center">
+        <div class="muted">Spin</div>
+        <div id="spins" class="big">0</div>
+      </div>
+      <div style="min-width:120px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center">
+        <div class="muted">Menang</div>
+        <div id="wins" class="big">0</div>
+      </div>
+      <div style="min-width:120px;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;text-align:center">
+        <div class="muted">Total Payout</div>
+        <div id="totalPayout" class="big">0</div>
+      </div>
+    </div>
+
+    <div class="history" id="history"></div>
+    <footer>Catatan: saya tidak akan membuat salinan sempurna dari game berlisensi. Ini hanya demo yang terinspirasi.</footer>
+  </div>
+
+  <div class="card controls">
+    <h2>Pengaturan Lanjutan</h2>
+    <div class="muted">Atur simbol dan pembayaran. Gunakan emoji atau teks — jangan gunakan aset resmi.</div>
+    <div style="margin-top:8px">
+      <label class="muted">Simbol (pisahkan koma)</label>
+      <input id="symbols" value="🍇,🍊,🔮,🪙,🔱,💎" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+    </div>
+    <div style="margin-top:8px">
+      <label class="muted">Paytable (format simbol:multiplier, koma pisah)</label>
+      <input id="paytable" value="🍇:2,🍊:3,🔮:4,🪙:6,🔱:12,💎:30" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button id="applySettings">Apply</button>
+      <button id="saveLocal" class="ghost">Save</button>
+      <button id="loadLocal" class="ghost">Load</button>
+    </div>
+    <div style="margin-top:12px">
+      <div class="muted"><strong>Fitur yang saya buat:</strong></div>
+      <ul class="muted">
+        <li>Grid 6×5, mekanik tumbling (cascade) setelah kemenangan.</li>
+        <li>Simbol multiplier acak yang ditambahkan ke setiap tumble dan dapat mengalikan kemenangan kumulatif.</li>
+        <li>Slider untuk mengatur probabilitas menang (demo only).</li>
+        <li>Mode Free Spins (trigger manual) yang meningkatkan peluang & mengumpulkan multipliers.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Elements
+  const boardEl = document.getElementById('board');
+  const balanceEl = document.getElementById('balance');
+  const balanceInput = document.getElementById('balanceInput');
+  const betInput = document.getElementById('betInput');
+  const spinBtn = document.getElementById('spinBtn');
+  const winPct = document.getElementById('winPct');
+  const winPctLabel = document.getElementById('winPctLabel');
+  const forceBtn = document.getElementById('forceBtn');
+  const forceStateEl = document.getElementById('forceState');
+  const freeSpinBtn = document.getElementById('freeSpinBtn');
+  const spinsEl = document.getElementById('spins');
+  const winsEl = document.getElementById('wins');
+  const totalPayoutEl = document.getElementById('totalPayout');
+  const historyEl = document.getElementById('history');
+  const messageEl = document.getElementById('message');
+  const symbolsInput = document.getElementById('symbols');
+  const paytableInput = document.getElementById('paytable');
+  const applySettings = document.getElementById('applySettings');
+  const saveLocal = document.getElementById('saveLocal');
+  const loadLocal = document.getElementById('loadLocal');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // State
+  let state = {
+    balance: Number(balanceInput.value) || 1000,
+    spins: 0,
+    wins: 0,
+    totalPayout: 0,
+    winPct: Number(winPct.value),
+    forced: null,
+    symbols: [],
+    paytable: {},
+    grid: Array(30).fill(null), // 6x5
+    freeSpinsActive: false,
+    freeSpinsLeft: 0,
+    accumulatedMultipliers: []
+  };
+
+  function initBoard(){
+    boardEl.innerHTML = '';
+    for(let i=0;i<30;i++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.index = i;
+      boardEl.appendChild(cell);
+    }
+  }
+
+  function parseSettings(){
+    const syms = symbolsInput.value.split(',').map(s=>s.trim()).filter(Boolean);
+    const pt = {};
+    paytableInput.value.split(',').map(p=>p.trim()).forEach(pair=>{
+      const [k,v] = pair.split(':').map(x=>x&&x.trim()); if(k && v) pt[k]=Number(v);
+    });
+    if(syms.length>=2) state.symbols = syms; if(Object.keys(pt).length) state.paytable = pt;
+  }
+
+  function seedGrid(){
+    for(let i=0;i<30;i++) state.grid[i] = state.symbols[Math.floor(Math.random()*state.symbols.length)];
+    renderGrid();
+  }
+
+  function renderGrid(){
+    const cells = boardEl.querySelectorAll('.cell');
+    cells.forEach((c,i)=>{
+      c.textContent = state.grid[i] || '';
+      // multiplier badge
+      c.querySelectorAll('.mult-badge')?.forEach(n=>n.remove());
+      const mult = state.accumulatedMultipliers[i];
+      if(mult){
+        const b = document.createElement('div'); b.className='mult-badge'; b.textContent = 'x'+mult; c.appendChild(b);
+      }
+    });
+    balanceEl.textContent = state.balance.toFixed(2);
+    spinsEl.textContent = state.spins;
+    winsEl.textContent = state.wins;
+    totalPayoutEl.textContent = state.totalPayout.toFixed(2);
+  }
+
+  function showMessage(t){ messageEl.textContent = t; setTimeout(()=>{ if(messageEl.textContent===t) messageEl.textContent=''; },2500); }
+
+  function findClusters(){
+    // For simplicity: count occurrences of each symbol across grid; winning if count >=8 (scatter/anywhere)
+    const counts = {};
+    state.grid.forEach(s=>counts[s]=(counts[s]||0)+1);
+    const winners = Object.keys(counts).filter(k=>counts[k]>=8);
+    return winners; // array of symbols that won
+  }
+
+  function applyTumble(){
+    // Remove winning symbols (set to null) and let above fall (simulate columns of 5 rows)
+    for(let col=0; col<6; col++){
+      const colIdxs = [];
+      for(let row=0; row<5; row++) colIdxs.push(row*6 + col);
+      // build column top-to-bottom
+      let colVals = colIdxs.map(idx=>state.grid[idx]);
+      // remove nulls
+      colVals = colVals.filter(v=>v!==null && v!==undefined);
+      // fill top with new random to make length 5
+      while(colVals.length<5) colVals.unshift(state.symbols[Math.floor(Math.random()*state.symbols.length)]);
+      // write back
+      colIdxs.forEach((idx,i)=> state.grid[idx]=colVals[i]);
+    }
+  }
+
+  async function spin(){
+    const bet = Number(betInput.value) || 1;
+    if(state.balance < bet){ alert('Saldo tidak cukup'); return; }
+    state.balance -= bet; state.spins++;
+
+    // Determine whether this spin should produce a win, based on winPct or forced
+    let willWin = false;
+    if(state.forced === true) willWin = true;
+    else if(state.forced === false) willWin = false;
+    else willWin = (Math.random()*100) < state.winPct;
+
+    // Randomize grid
+    seedGrid();
+    state.accumulatedMultipliers = Array(30).fill(null);
+
+    // Randomly place multiplier symbols (represented as small numbers), with some chance
+    for(let i=0;i<6;i++){ // up to 6 multipliers
+      if(Math.random()<0.25){ const pos = Math.floor(Math.random()*30); state.accumulatedMultipliers[pos] = Math.floor(2 + Math.random()*6); }
+    }
+
+    renderGrid();
+
+    // short animation (visual effect)
+    await new Promise(r=>setTimeout(r,500));
+
+    // Evaluate wins: if willWin false, ensure no symbol reaches 8 by random tweak
+    if(!willWin){
+      // make sure counts <8
+      const counts = {};
+      state.grid.forEach(s=>counts[s]=(counts[s]||0)+1);
+      Object.keys(counts).forEach(sym=>{
+        if(counts[sym]>=8){
+          // change some instances to other symbols
+          for(let i=0;i<30 && counts[sym]>=8;i++){
+            if(state.grid[i]===sym){ state.grid[i]= state.symbols[Math.floor(Math.random()*state.symbols.length)===0?0: (Math.floor(Math.random()*state.symbols.length))]; counts[sym]--; }
+          }
+        }
+      });
+    }
+
+    renderGrid();
+
+    // Check winners
+    let winners = findClusters();
+    let totalPayout = 0;
+
+    if(winners.length>0){
+      // For each winning symbol, calculate payout = bet * multiplier_based_on_paytable * (sum of multipliers on board if any)
+      winners.forEach(sym=>{
+        const baseMult = state.paytable[sym] || 2;
+        // sum multipliers on positions matching symbol
+        let multSum = 0; let count=0;
+        state.grid.forEach((v,idx)=>{ if(v===sym){ count++; if(state.accumulatedMultipliers[idx]) multSum += state.accumulatedMultipliers[idx]; }});
+        const extra = multSum || 1;
+        // simplistic scaling: payout = bet * baseMult * (count/8) * extra
+        const payout = bet * baseMult * (count/8) * extra;
+        totalPayout += payout;
+      });
+    }
+
+    // If willWin true but no winners found (rare), force one: pick a symbol and set 8 positions
+    if(willWin && winners.length===0){
+      const pick = state.symbols[Math.floor(Math.random()*state.symbols.length)];
+      // set first 8 grid positions to pick
+      let assigned = 0;
+      for(let i=0;i<30 && assigned<8;i++){ if(state.grid[i]!==pick){ state.grid[i]=pick; assigned++; } }
+      // recalc payout
+      const baseMult = state.paytable[pick]||2; const payout = bet * baseMult * (8/8) * 2; totalPayout += payout;
+      winners = [pick];
+    }
+
+    // Apply payout only if willWin is true
+    if(willWin && totalPayout>0){ state.balance += totalPayout; state.wins++; state.totalPayout += totalPayout; }
+
+    // If there was a win, trigger tumbles until no new winners or limit
+    if(willWin && winners.length>0){
+      // simulate a few tumbles
+      for(let t=0;t<6;t++){
+        await new Promise(r=>setTimeout(r,350));
+        // remove winning symbols (set to null)
+        const winnersNow = findClusters();
+        if(winnersNow.length===0) break;
+        // clear winners: replace with null
+        for(let i=0;i<30;i++){ if(winnersNow.includes(state.grid[i])) state.grid[i]=null; }
+        applyTumble();
+        renderGrid();
+      }
+    }
+
+    state.totalPayout += 0; // already added
+    // record history
+    state.history = state.history || [];
+    state.history.unshift({time:new Date().toISOString(), bet:bet, payout: willWin? totalPayout:0, winners:winners});
+    if(state.history.length>200) state.history.pop();
+
+    renderGrid(); renderHistory();
+  }
+
+  function renderHistory(){ historyEl.innerHTML=''; state.history.forEach(h=>{ const d=document.createElement('div'); d.className='history-item'; d.innerHTML = `<div><strong>${h.winners.length? h.winners.join(', '):'LOSS'}</strong><div class='muted'>${new Date(h.time).toLocaleString()}</div></div><div>${h.payout>0?'+ '+h.payout.toFixed(2):'- '+h.bet}</div>`; historyEl.appendChild(d); }); }
+
+  // UI bindings
+  winPct.addEventListener('input', ()=>{ state.winPct = Number(winPct.value); winPctLabel.textContent = state.winPct + '%'; });
+  balanceInput.addEventListener('change', ()=>{ state.balance = Number(balanceInput.value)||0; renderGrid(); });
+  spinBtn.addEventListener('click', spin);
+  forceBtn.addEventListener('click', ()=>{ state.forced = state.forced===null?true:(state.forced===true?false:null); forceStateEl.textContent = state.forced===null? 'Off': (state.forced? 'WIN':'LOSE'); });
+  freeSpinBtn.addEventListener('click', ()=>{ // manual free spins mode: run 10 spins with higher win chance
+    const prev = state.winPct; state.winPct = Math.min(95, state.winPct + 30); showMessage('Free spins mode: increased win% (temporary)'); let cnt=0; const run = setInterval(()=>{ spin(); cnt++; if(cnt>=10){ clearInterval(run); state.winPct = prev; showMessage('Free spins ended'); } }, 900);
+  });
+
+  applySettings.addEventListener('click', ()=>{ parseSettings(); seedGrid(); showMessage('Settings applied'); });
+  saveLocal.addEventListener('click', ()=>{ localStorage.setItem('gatesDemo', JSON.stringify({state:{...state, grid:state.grid}})); showMessage('Saved to localStorage'); });
+  loadLocal.addEventListener('click', ()=>{ const s=localStorage.getItem('gatesDemo'); if(!s) { showMessage('No saved data'); return;} try{ const obj=JSON.parse(s); Object.assign(state, obj.state); renderGrid(); renderHistory(); showMessage('Loaded'); }catch(e){ showMessage('Load failed'); }});
+  resetBtn.addEventListener('click', ()=>{ if(!confirm('Reset stats and grid?')) return; state.spins=0; state.wins=0; state.totalPayout=0; state.history=[]; seedGrid(); renderGrid(); renderHistory(); showMessage('Reset'); });
+
+  // init
+  parseSettings(); initBoard(); seedGrid(); renderGrid(); renderHistory();
+})(); 
+</script>
+</body>
+</html>
