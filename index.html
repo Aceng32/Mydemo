@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Demo Game — Safe Demo & Mock Controller</title>
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#1ea7fd;--glass:rgba(255,255,255,0.03)}
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#071028 0%,#071422 100%);color:#e6eef6}
+  .container{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:20px;height:100%}
+  .panel{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6);overflow:auto}
+  h2{margin:0 0 12px 0;font-size:18px}
+  .iframe-wrap{height:calc(100vh - 120px);background:var(--glass);border-radius:8px;display:flex;align-items:center;justify-content:center}
+  iframe{width:100%;height:100%;border-radius:8px;border:0}
+  .muted{color:var(--muted);font-size:13px}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  input[type=range]{width:100%}
+  .row{display:flex;gap:8px;align-items:center}
+  button{background:var(--accent);border:0;padding:10px 12px;border-radius:8px;color:#032035;font-weight:600;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .stats{display:flex;gap:8px;flex-wrap:wrap}
+  .stat{background:rgba(255,255,255,0.03);padding:8px;border-radius:8px;min-width:110px;text-align:center}
+  .big{font-size:20px;font-weight:700}
+  .history{max-height:220px;overflow:auto;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
+  .history-item{display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px dashed rgba(255,255,255,0.02);font-size:13px}
+  .footer-note{font-size:12px;color:#ffcccb;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- LEFT: Embed original game (read-only) -->
+  <div class="panel">
+    <h2>Embed Game Asli (Read-only)</h2>
+    <p class="muted">Halaman ini mencoba memuat game Anda di bawah. Jika kosong atau tidak muncul, server game mungkin memblokir pemuatan dalam iframe (X-Frame-Options/CSP). Saya tidak dapat membantu memodifikasi atau merigging game eksternal.</p>
+    <div class="iframe-wrap">
+      <iframe id="gameFrame" src="https://d3pvfi6m7bxu71.cloudfront.net/gs2c/html5Game.do?extGame=1&symbol=vs20olympx&gname=Gates%20of%20Olympus%201000&jurisdictionID=99&mgckey=stylename@generic~SESSION@ec0962a7-595a-421d-b893-9703daa190c1" title="Game Asli (Embedded)"></iframe>
+    </div>
+    <p class="muted" style="margin-top:10px">Catatan keamanan & legal: jangan mencoba mengubah file atau lalu lintas jaringan game tanpa izin eksplisit — itu berisiko dan sering ilegal. Gunakan bagian sebelah kanan untuk demo yang dapat dikendalikan.</p>
+  </div>
+
+  <!-- RIGHT: Mock demo with adjustable win rate -->
+  <div class="panel">
+    <h2>Mock Demo Controller — (bisa dikendalikan)</h2>
+    <div class="controls">
+      <div>
+        <label>Saldo virtual</label>
+        <div class="row">
+          <div style="flex:1">
+            <input id="balanceInput" type="number" value="1000" min="0" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+          </div>
+          <button id="setBalance" class="ghost">Set</button>
+        </div>
+      </div>
+
+      <div>
+        <label>Probabilitas kemenangan (demo) — <span id="winPctLabel">30%</span></label>
+        <input id="winPct" type="range" min="0" max="100" value="30">
+        <div class="muted" style="margin-top:6px">Atur persentase kemenangan yang diinginkan untuk demo (ini TIDAK menyentuh game asli).</div>
+      </div>
+
+      <div>
+        <label>Taruhan per spin</label>
+        <input id="bet" type="number" value="10" min="1" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit">
+      </div>
+
+      <div class="row">
+        <button id="spin">Spin</button>
+        <button id="forceWin" class="ghost">Toggle Force: <span id="forceState">Off</span></button>
+        <button id="reset" class="ghost">Reset</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="muted">Saldo</div>
+          <div id="balance" class="big">1000</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Spin</div>
+          <div id="spins" class="big">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Menang</div>
+          <div id="wins" class="big">0</div>
+        </div>
+        <div class="stat">
+          <div class="muted">Rasio</div>
+          <div id="ratio" class="big">0%</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="muted">Riwayat Spin (terbaru di atas)</div>
+        <div class="history" id="history"></div>
+      </div>
+
+      <div class="footer-note">
+        Ini hanya simulasi untuk demo/presentasi. Jangan gunakan untuk merusak atau memanipulasi platform pihak ketiga.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // State
+  let state = {
+    balance: 1000,
+    spins: 0,
+    wins: 0,
+    winPct: 30,
+    forced: null, // null | true | false
+  };
+
+  // Elements
+  const balanceEl = document.getElementById('balance');
+  const spinsEl = document.getElementById('spins');
+  const winsEl = document.getElementById('wins');
+  const ratioEl = document.getElementById('ratio');
+  const historyEl = document.getElementById('history');
+  const winPctInput = document.getElementById('winPct');
+  const winPctLabel = document.getElementById('winPctLabel');
+  const betInput = document.getElementById('bet');
+  const spinBtn = document.getElementById('spin');
+  const forceBtn = document.getElementById('forceWin');
+  const forceStateSpan = document.getElementById('forceState');
+  const resetBtn = document.getElementById('reset');
+  const balanceInput = document.getElementById('balanceInput');
+  const setBalanceBtn = document.getElementById('setBalance');
+
+  function render() {
+    balanceEl.textContent = state.balance.toFixed(2);
+    spinsEl.textContent = state.spins;
+    winsEl.textContent = state.wins;
+    ratioEl.textContent = state.spins ? Math.round((state.wins/state.spins)*100) + '%' : '0%';
+    winPctLabel.textContent = state.winPct + '%';
+    forceStateSpan.textContent = state.forced === null ? 'Off' : (state.forced ? 'Force WIN' : 'Force LOSE');
+  }
+
+  function addHistory(entry) {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `<div><strong>${entry.result}</strong> — bet ${entry.bet}</div><div class="muted">${entry.detail}</div>`;
+    historyEl.prepend(div);
+    // limit history length
+    while(historyEl.children.length > 200) historyEl.removeChild(historyEl.lastChild);
+  }
+
+  function spinOnce() {
+    const bet = Math.max(1, parseFloat(betInput.value) || 1);
+    if (state.balance < bet) {
+      alert('Saldo tidak cukup untuk taruhan.');
+      return;
+    }
+
+    state.balance -= bet;
+    state.spins++;
+
+    // Determine win/lose
+    let win = false;
+    if (state.forced === true) {
+      win = true;
+    } else if (state.forced === false) {
+      win = false;
+    } else {
+      const roll = Math.random()*100;
+      win = roll < state.winPct;
+    }
+
+    // If win: determine payout (simple model: multiplier between 1.5x - 10x)
+    let payout = 0;
+    let multiplier = 0;
+    if (win) {
+      // choose multiplier skewed by probability: rarer wins => higher average multiplier
+      // We'll approximate: higher winPct => smaller multipliers on average
+      const base = Math.max(1.5, (1 + (100 - state.winPct)/30)); // adjust scale
+      multiplier = base + Math.random()* (base*3); // random multiplier
+      payout = bet * multiplier;
+      state.balance += payout;
+      state.wins++;
+    }
+
+    // Update UI & history
+    render();
+    addHistory({
+      result: win ? `WIN x${multiplier.toFixed(2)}` : 'LOSS',
+      bet: bet.toFixed(2),
+      detail: win ? `+${payout.toFixed(2)}` : `-${bet.toFixed(2)}`
+    });
+  }
+
+  // Event listeners
+  winPctInput.addEventListener('input', (e)=>{
+    state.winPct = Number(e.target.value);
+    render();
+  });
+
+  spinBtn.addEventListener('click', spinOnce);
+
+  forceBtn.addEventListener('click', ()=>{
+    if (state.forced === null) state.forced = true;
+    else if (state.forced === true) state.forced = false;
+    else state.forced = null;
+    render();
+  });
+
+  resetBtn.addEventListener('click', ()=>{
+    if (!confirm('Reset semua statistik dan riwayat?')) return;
+    state.spins = 0; state.wins = 0; historyEl.innerHTML = ''; render();
+  });
+
+  setBalanceBtn.addEventListener('click', ()=>{
+    const val = Math.max(0, Number(balanceInput.value) || 0);
+    state.balance = val;
+    render();
+  });
+
+  // Initialize
+  render();
+})();
+</script>
+</body>
+</html>
